@@ -16,12 +16,18 @@ const {
   addTrailingComment,
 } = require("../common/util.js");
 
+const addOptionToLocationFunctions = (options) => ({
+  ...options,
+  locStart: (node) => options.locStart(node, { forCommentAttach: true }),
+  locEnd: (node) => options.locEnd(node, { forCommentAttach: true }),
+});
+
 const childNodesCache = new WeakMap();
 function getSortedChildNodes(node, options, resultArray) {
   if (!node) {
     return;
   }
-  const { printer, locStart, locEnd } = options;
+  const { printer, locStart, locEnd } = addOptionToLocationFunctions(options);
 
   if (resultArray) {
     if (printer.canAttachComment && printer.canAttachComment(node)) {
@@ -80,7 +86,7 @@ function getSortedChildNodes(node, options, resultArray) {
 // .precedingNode, .enclosingNode, and/or .followingNode properties, at
 // least one of which is guaranteed to be defined.
 function decorateComment(node, comment, options, enclosingNode) {
-  const { locStart, locEnd } = options;
+  const { locStart, locEnd } = addOptionToLocationFunctions(options);
   const commentStart = locStart(comment);
   const commentEnd = locEnd(comment);
 
@@ -166,7 +172,7 @@ function attach(comments, ast, text, options) {
     locStart,
     locEnd,
     printer: { handleComments = {} },
-  } = options;
+  } = addOptionToLocationFunctions(options);
   // TODO: Make this as default behavior
   const {
     avoidAstMutation,
@@ -306,6 +312,7 @@ function attach(comments, ast, text, options) {
 
 const isAllEmptyAndNoLineBreak = (text) => !/[\S\n\u2028\u2029]/.test(text);
 function isOwnLineComment(text, options, decoratedComments, commentIndex) {
+  options = addOptionToLocationFunctions(options);
   const { comment, precedingNode } = decoratedComments[commentIndex];
   const { locStart, locEnd } = options;
   let start = locStart(comment);
@@ -329,6 +336,7 @@ function isOwnLineComment(text, options, decoratedComments, commentIndex) {
 }
 
 function isEndOfLineComment(text, options, decoratedComments, commentIndex) {
+  options = addOptionToLocationFunctions(options);
   const { comment, followingNode } = decoratedComments[commentIndex];
   const { locStart, locEnd } = options;
   let end = locEnd(comment);
@@ -360,14 +368,14 @@ function breakTies(tiesToBreak, text, options) {
   if (tieCount === 0) {
     return;
   }
+  options = addOptionToLocationFunctions(options);
+  const { printer, locStart, locEnd } = options;
   const { precedingNode, followingNode, enclosingNode } = tiesToBreak[0];
 
   const gapRegExp =
-    (options.printer.getGapRegex &&
-      options.printer.getGapRegex(enclosingNode)) ||
-    /^[\s(]*$/;
+    (printer.getGapRegex && printer.getGapRegex(enclosingNode)) || /^[\s(]*$/;
 
-  let gapEndPos = options.locStart(followingNode);
+  let gapEndPos = locStart(followingNode);
 
   // Iterate backwards through tiesToBreak, examining the gaps
   // between the tied comments. In order to qualify as leading, a
@@ -388,10 +396,10 @@ function breakTies(tiesToBreak, text, options) {
     assert.strictEqual(currentCommentPrecedingNode, precedingNode);
     assert.strictEqual(currentCommentFollowingNode, followingNode);
 
-    const gap = text.slice(options.locEnd(comment), gapEndPos);
+    const gap = text.slice(locEnd(comment), gapEndPos);
 
     if (gapRegExp.test(gap)) {
-      gapEndPos = options.locStart(comment);
+      gapEndPos = locStart(comment);
     } else {
       // The gap string contained something other than whitespace or open
       // parentheses.
@@ -409,7 +417,7 @@ function breakTies(tiesToBreak, text, options) {
 
   for (const node of [precedingNode, followingNode]) {
     if (node.comments && node.comments.length > 1) {
-      node.comments.sort((a, b) => options.locStart(a) - options.locStart(b));
+      node.comments.sort((a, b) => locStart(a) - locStart(b));
     }
   }
 
@@ -423,10 +431,11 @@ function printComment(path, options) {
 }
 
 function findExpressionIndexForComment(quasis, comment, options) {
-  const startPos = options.locStart(comment) - 1;
+  const { locStart } = addOptionToLocationFunctions(options);
+  const startPos = locStart(comment) - 1;
 
   for (let i = 1; i < quasis.length; ++i) {
-    if (startPos < options.locStart(quasis[i])) {
+    if (startPos < locStart(quasis[i])) {
       return i - 1;
     }
   }
