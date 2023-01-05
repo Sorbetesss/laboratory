@@ -40,11 +40,7 @@ function printObject(path, options, print) {
     node.type === "EnumStringBody" ||
     node.type === "EnumSymbolBody";
   const fields = [
-    node.type === "TSTypeLiteral" || isEnumBody
-      ? "members"
-      : node.type === "TSInterfaceBody"
-      ? "body"
-      : "properties",
+    node.type === "TSTypeLiteral" || isEnumBody ? "members" : "properties",
   ];
   if (isTypeAnnotation) {
     fields.push("indexers", "callProperties", "internalSlots");
@@ -77,7 +73,6 @@ function printObject(path, options, print) {
       parent.type === "DeclareClass") &&
     path.getName() === "body";
   const shouldBreak =
-    node.type === "TSInterfaceBody" ||
     isEnumBody ||
     isFlowInterfaceLikeBody ||
     (node.type === "ObjectPattern" &&
@@ -105,7 +100,7 @@ function printObject(path, options, print) {
 
   const separator = isFlowInterfaceLikeBody
     ? ";"
-    : node.type === "TSInterfaceBody" || node.type === "TSTypeLiteral"
+    : node.type === "TSTypeLiteral"
     ? ifBreak(semi, ";")
     : ",";
   const leftBrace =
