@@ -40,11 +40,7 @@ function printObject(path, options, print) {
     node.type === "EnumStringBody" ||
     node.type === "EnumSymbolBody";
   const fields = [
-    node.type === "TSTypeLiteral" || isEnumBody
-      ? "members"
-      : node.type === "TSInterfaceBody"
-      ? "body"
-      : "properties",
+    node.type === "TSTypeLiteral" || isEnumBody ? "members" : "properties",
   ];
   if (isTypeAnnotation) {
     fields.push("indexers", "callProperties", "internalSlots");
@@ -76,7 +72,6 @@ function printObject(path, options, print) {
       parent.type === "DeclareInterface" ||
       parent.type === "DeclareClass");
   const shouldBreak =
-    node.type === "TSInterfaceBody" ||
     isEnumBody ||
     isFlowInterfaceLikeBody ||
     (node.type === "ObjectPattern" &&
@@ -104,7 +99,7 @@ function printObject(path, options, print) {
 
   const separator = isFlowInterfaceLikeBody
     ? ";"
-    : node.type === "TSInterfaceBody" || node.type === "TSTypeLiteral"
+    : node.type === "TSTypeLiteral"
     ? ifBreak(semi, ";")
     : ",";
   const leftBrace =
@@ -116,14 +111,7 @@ function printObject(path, options, print) {
   const props = propsAndLoc.map((prop) => {
     const result = [...separatorParts, group(prop.printed)];
     separatorParts = [separator, line];
-    if (
-      (prop.node.type === "TSPropertySignature" ||
-        prop.node.type === "TSMethodSignature" ||
-        prop.node.type === "TSConstructSignatureDeclaration") &&
-      hasComment(prop.node, CommentCheckFlags.PrettierIgnore)
-    ) {
-      separatorParts.shift();
-    }
+
     if (isNextLineEmpty(prop.node, options)) {
       separatorParts.push(hardline);
     }
@@ -158,13 +146,7 @@ function printObject(path, options, print) {
   const canHaveTrailingSeparator = !(
     node.inexact ||
     node.hasUnknownMembers ||
-    (lastElem &&
-      (lastElem.type === "RestElement" ||
-        ((lastElem.type === "TSPropertySignature" ||
-          lastElem.type === "TSCallSignatureDeclaration" ||
-          lastElem.type === "TSMethodSignature" ||
-          lastElem.type === "TSConstructSignatureDeclaration") &&
-          hasComment(lastElem, CommentCheckFlags.PrettierIgnore))))
+    lastElem?.type === "RestElement"
   );
 
   let content;

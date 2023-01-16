@@ -48,7 +48,8 @@ function printBlock(path, options, print) {
         parent.type === "TSModuleDeclaration" ||
         parent.type === "TSDeclareFunction" ||
         node.type === "StaticBlock" ||
-        node.type === "ClassBody"
+        node.type === "ClassBody" ||
+        node.type === "TSInterfaceBody"
       )
     ) {
       parts.push(hardline);

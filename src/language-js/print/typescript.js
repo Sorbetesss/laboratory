@@ -100,8 +100,8 @@ function printTypescript(path, options, print) {
     case "TSExportAssignment":
       return ["export = ", print("expression"), semi];
     case "TSModuleBlock":
-      return printBlock(path, options, print);
     case "TSInterfaceBody":
+      return printBlock(path, options, print);
     case "TSTypeLiteral":
       return printObject(path, options, print);
     case "TSTypeAliasDeclaration":
@@ -179,6 +179,10 @@ function printTypescript(path, options, print) {
         parts.push(" = ", print("initializer"));
       }
 
+      if (path.parent.type === "TSInterfaceBody") {
+        parts.push(semi);
+      }
+
       return parts;
 
     case "TSParameterProperty":
@@ -234,7 +238,9 @@ function printTypescript(path, options, print) {
         node.parameters ? parametersGroup : "",
         node.typeAnnotation ? "]: " : "]",
         node.typeAnnotation ? print("typeAnnotation") : "",
-        parent.type === "ClassBody" ? semi : "",
+        parent.type === "ClassBody" || parent.type === "TSInterfaceBody"
+          ? semi
+          : "",
       ];
     }
     case "TSTypePredicate":
@@ -287,6 +293,14 @@ function printTypescript(path, options, print) {
           print("returnType"),
           print("typeAnnotation")
         );
+      }
+
+      if (
+        (node.type === "TSConstructSignatureDeclaration" ||
+          node.type === "TSCallSignatureDeclaration") &&
+        path.parent.type === "TSInterfaceBody"
+      ) {
+        parts.push(semi);
       }
       return parts;
 
@@ -351,6 +365,10 @@ function printTypescript(path, options, print) {
 
       if (returnTypeNode) {
         parts.push(": ", group(returnTypeDoc));
+      }
+
+      if (path.parent.type === "TSInterfaceBody") {
+        parts.push(semi);
       }
 
       return group(parts);
