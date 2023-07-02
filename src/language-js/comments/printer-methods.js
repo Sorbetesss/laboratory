@@ -72,10 +72,7 @@ function willPrintOwnComments(path) {
         (parent.type === "JSXSpreadAttribute" ||
           parent.type === "JSXSpreadChild" ||
           parent.type === "UnionTypeAnnotation" ||
-          parent.type === "TSUnionType" ||
-          ((parent.type === "ClassDeclaration" ||
-            parent.type === "ClassExpression") &&
-            parent.superClass === node)))) &&
+          parent.type === "TSUnionType"))) &&
     (!hasNodeIgnoreComment(node) ||
       parent.type === "UnionTypeAnnotation" ||
       parent.type === "TSUnionType")

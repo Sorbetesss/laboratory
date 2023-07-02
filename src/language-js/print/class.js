@@ -1,9 +1,6 @@
 import isNonEmptyArray from "../../utils/is-non-empty-array.js";
 import createGroupIdMapper from "../../utils/create-group-id-mapper.js";
-import {
-  printComments,
-  printDanglingComments,
-} from "../../main/comments/print.js";
+import { printDanglingComments } from "../../main/comments/print.js";
 import {
   join,
   line,
@@ -57,61 +54,30 @@ function printClass(path, options, print) {
   /** @type {Doc[]} */
   const parts = [printDeclareToken(path), printAbstractToken(path), "class"];
 
-  // Keep old behaviour of extends in same line
-  // If there is only on extends and there are not comments
-  const groupMode =
-    hasComment(node.id, CommentCheckFlags.Trailing) ||
-    hasComment(node.typeParameters, CommentCheckFlags.Trailing) ||
-    hasComment(node.superClass) ||
-    isNonEmptyArray(node.extends) || // DeclareClass
-    isNonEmptyArray(node.mixins) ||
-    isNonEmptyArray(node.implements);
+  const partsGroup = [
+    ...(node.id ? [" ", print("id")] : []),
+    print("typeParameters"),
+  ];
 
-  const partsGroup = [];
-  const extendsParts = [];
+  const extendsParts = [
+    "superClass",
+    "extends",
+    "mixins",
+    "implements",
+  ].flatMap((property) => printHeritageClauses(path, options, print, property));
 
-  if (node.id) {
-    partsGroup.push(" ", print("id"));
-  }
-
-  partsGroup.push(print("typeParameters"));
-
-  if (node.superClass) {
-    const printed = [
-      printSuperClass(path, options, print),
-      print("superTypeParameters"),
-    ];
-    const printedWithComments = path.call(
-      (superClass) => ["extends ", printComments(superClass, printed, options)],
-      "superClass"
-    );
-    if (groupMode) {
-      extendsParts.push(line, group(printedWithComments));
-    } else {
-      extendsParts.push(" ", printedWithComments);
-    }
+  let printedPartsGroup;
+  if (shouldIndentOnlyHeritageClauses(node)) {
+    printedPartsGroup = [...partsGroup, indent(extendsParts)];
   } else {
-    extendsParts.push(printHeritageClauses(path, options, print, "extends"));
+    printedPartsGroup = indent([...partsGroup, extendsParts]);
   }
 
-  extendsParts.push(
-    printHeritageClauses(path, options, print, "mixins"),
-    printHeritageClauses(path, options, print, "implements")
+  parts.push(
+    group(printedPartsGroup, { id: getHeritageGroupId(node) }),
+    " ",
+    print("body")
   );
-
-  if (groupMode) {
-    let printedPartsGroup;
-    if (shouldIndentOnlyHeritageClauses(node)) {
-      printedPartsGroup = [...partsGroup, indent(extendsParts)];
-    } else {
-      printedPartsGroup = indent([...partsGroup, extendsParts]);
-    }
-    parts.push(group(printedPartsGroup, { id: getHeritageGroupId(node) }));
-  } else {
-    parts.push(...partsGroup, ...extendsParts);
-  }
-
-  parts.push(" ", print("body"));
 
   return parts;
 }
@@ -125,7 +91,7 @@ function printHardlineAfterHeritage(node) {
 function hasMultipleHeritage(node) {
   return (
     ["extends", "mixins", "implements"].reduce(
-      (count, key) => count + (Array.isArray(node[key]) ? node[key].length : 0),
+      (count, key) => count + (Array.isArray(node[key]) ? 1 : 0),
       node.superClass ? 1 : 0
     ) > 1
   );
@@ -144,9 +110,19 @@ function shouldIndentOnlyHeritageClauses(node) {
 
 function printHeritageClauses(path, options, print, listName) {
   const { node } = path;
-  if (!isNonEmptyArray(node[listName])) {
+
+  // superClass is a single node
+  if (
+    (listName === "superClass" && !node.superClass) ||
+    (listName !== "superClass" && !isNonEmptyArray(node[listName]))
+  ) {
     return "";
   }
+
+  const printed =
+    listName === "superClass"
+      ? printSuperClass(path, options, print)
+      : join([",", line], path.map(print, listName));
 
   const printedLeadingComments = printDanglingComments(path, options, {
     marker: listName,
@@ -159,20 +135,21 @@ function printHeritageClauses(path, options, print, listName) {
       : line,
     printedLeadingComments,
     printedLeadingComments && hardline,
-    listName,
-    group(indent([line, join([",", line], path.map(print, listName))])),
+    listName === "superClass" ? "extends" : listName,
+    group(indent([line, printed])),
   ];
 }
 
 function printSuperClass(path, options, print) {
-  const printed = print("superClass");
-  const { parent } = path;
-  if (parent.type === "AssignmentExpression") {
-    return group(
+  let printed = print("superClass");
+
+  if (path.parent.type === "AssignmentExpression") {
+    printed = group(
       ifBreak(["(", indent([softline, printed]), softline, ")"], printed)
     );
   }
-  return printed;
+
+  return [printed, print("superTypeParameters")];
 }
 
 function printClassMethod(path, options, print) {
