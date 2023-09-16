@@ -1,5 +1,5 @@
 import { all as getCjkCharset } from "cjk-regex";
-import { Charset } from "regexp-util";
+import { Charset, charset } from "regexp-util";
 import unicodeRegex from "unicode-regex";
 
 const cjkCharset = new Charset(
@@ -15,6 +15,8 @@ const cjkCharset = new Charset(
       "Nonspacing_Mark",
     ],
   }),
+  // Firefox treats them as CJK
+  charset("゠", "・"),
 );
 const variationSelectorsCharset = unicodeRegex({
   Block: ["Variation_Selectors", "Variation_Selectors_Supplement"],
