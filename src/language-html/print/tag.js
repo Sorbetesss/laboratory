@@ -2,7 +2,7 @@
  * @typedef {import("../../document/builders.js").Doc} Doc
  */
 
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import isNonEmptyArray from "../../utils/is-non-empty-array.js";
 import {
   indent,

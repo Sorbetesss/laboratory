@@ -2,6 +2,12 @@
 const path = require("node:path");
 const { isCI } = require("ci-info");
 
+// https://github.com/eslint-community/eslint-plugin-n/issues/59
+const PREFER_NODE_ASSERT_STRICT = {
+  name: ["node:assert"],
+  message: "Use 'node:assert/strict' instead.",
+};
+
 module.exports = {
   root: true,
   env: {
@@ -157,6 +163,7 @@ module.exports = {
 
     // eslint-plugin-n
     "n/no-path-concat": "error",
+    "n/no-restricted-import": ["error", [PREFER_NODE_ASSERT_STRICT]],
 
     // eslint-plugin-regexp
     "regexp/match-any": [
@@ -320,6 +327,7 @@ module.exports = {
         "n/no-restricted-import": [
           "error",
           [
+            PREFER_NODE_ASSERT_STRICT,
             {
               name: [
                 path.resolve(__dirname, "src/**"),
