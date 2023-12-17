@@ -1,21 +1,62 @@
 import fs from "node:fs/promises";
+import { execa } from "execa";
 import chalk from "chalk";
 
-const packageJson = JSON.parse(
-  await fs.readFile(new URL("../package.json", import.meta.url)),
-);
+const PACKAGE_JSON_FILE = new URL("../package.json", import.meta.url);
+const DEPENDENCY_KINDS = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+  "resolutions",
+];
 
-validateDependencyObject(packageJson.dependencies);
-validateDependencyObject(packageJson.devDependencies);
+const isPinnedVersion = (version) =>
+  !(version.startsWith("^") || version.startsWith("~"));
 
-function validateDependencyObject(object) {
-  for (const key of Object.keys(object)) {
-    if (object[key][0] === "^" || object[key][0] === "~") {
-      console.error(
-        chalk.red("error"),
-        `Dependency "${chalk.bold.red(key)}" should be pinned.`,
-      );
-      process.exitCode = 1;
+function* getUnpinnedDependencies(packageJson) {
+  for (const kind of DEPENDENCY_KINDS) {
+    for (const [name, version] of Object.entries(packageJson[kind] ?? {})) {
+      if (!isPinnedVersion(version)) {
+        yield { kind, name, version };
+      }
     }
   }
 }
+
+async function fixDependencies() {
+  const packageJson = JSON.parse(await fs.readFile(PACKAGE_JSON_FILE));
+
+  let changed = false;
+
+  for (const { kind, name, version } of getUnpinnedDependencies(packageJson)) {
+    packageJson[kind][name] = version.slice(1);
+    changed = true;
+  }
+
+  if (changed) {
+    await fs.writeFile(
+      PACKAGE_JSON_FILE,
+      JSON.stringify(packageJson, undefined, 2) + "\n",
+    );
+    await execa("yarn");
+  }
+}
+
+async function checkDependencies() {
+  const packageJson = JSON.parse(await fs.readFile(PACKAGE_JSON_FILE));
+
+  for (const { kind, name } of getUnpinnedDependencies(packageJson)) {
+    console.error(
+      chalk.red("error"),
+      `"${chalk.bold.red(name)}" in "${kind}" should be pinned.`,
+    );
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv.includes("--fix")) {
+  await fixDependencies();
+}
+
+await checkDependencies();
