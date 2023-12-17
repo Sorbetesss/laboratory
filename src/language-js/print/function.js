@@ -1,4 +1,4 @@
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import { printDanglingComments } from "../../main/comments/print.js";
 import {
   softline,

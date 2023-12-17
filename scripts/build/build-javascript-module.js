@@ -158,7 +158,7 @@ function getEsbuildOptions({ file, files, shouldCollectLicenses, cliOptions }) {
       // TODO[@fisker]: Find a better way
       {
         module: "*",
-        find: ' from "node:assert";',
+        find: ' from "node:assert/strict";',
         replacement: ` from ${JSON.stringify(
           path.join(dirname, "./shims/assert.js"),
         )};`,
