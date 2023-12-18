@@ -6,7 +6,6 @@ import { outdent } from "outdent";
 import { DIST_DIR, PROJECT_ROOT } from "../utils/index.js";
 
 const PROJECT_LICENSE_FILE = path.join(PROJECT_ROOT, "LICENSE");
-const LICENSE_FILE = path.join(DIST_DIR, "LICENSE");
 const separator = `\n${"-".repeat(40)}\n\n`;
 
 function toBlockQuote(text) {
@@ -137,7 +136,7 @@ async function buildLicense({ file, files, shouldCollectLicenses }) {
 
   const text = await getLicenseText(javascriptFiles);
 
-  await fs.writeFile(LICENSE_FILE, text);
+  await fs.writeFile(path.join(DIST_DIR, file.output.file), text);
 }
 
 export default buildLicense;
