@@ -1,5 +1,48 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`2548-long-long-member-chain.js format 1`] = `
+====================================options=====================================
+parsers: ["babel", "flow", "typescript"]
+printWidth: 80
+                                                                                | printWidth
+=====================================input======================================
+this.is.a.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.method();
+
+this.is.a.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long()
+.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.long.method.chain();
+
+this.is.a.longlonglonglonglonglonglonglonglonglonglong["long long long long long method with bracket notation"]()
+.and?.longlonglonglonglong?.longlonglonglonglong?.longlonglonglonglong?.longlonglonglonglong?.optional?.method?.()
+.and.longlonglonglonglong.longlonglonglonglong.longlonglonglonglong.longlonglonglonglong.trailing.property.access;
+
+this.is.a./* comment */ method /* comment */.chain // comment
+.with.some.comments()
+
+=====================================output=====================================
+this.is.a.long.long.long.long.long.long.long.long.long.long.long.long.long.long
+  .long.long.method();
+
+this.is.a.long.long.long.long.long.long.long.long.long.long.long.long.long.long
+  .long.long
+  .long()
+  .long.long.long.long.long.long.long.long.long.long.long.long.long.long.long
+  .long.long.long.method.chain();
+
+this.is.a.longlonglonglonglonglonglonglonglonglonglong[
+  "long long long long long method with bracket notation"
+]().and?.longlonglonglonglong?.longlonglonglonglong?.longlonglonglonglong
+  ?.longlonglonglonglong?.optional?.method?.().and.longlonglonglonglong
+  .longlonglonglonglong.longlonglonglonglong.longlonglonglonglong.trailing
+  .property.access;
+
+this.is.a./* comment */ method /* comment */
+  .chain // comment
+  .with.some
+  .comments();
+
+================================================================================
+`;
+
 exports[`13018.js format 1`] = `
 ====================================options=====================================
 parsers: ["babel", "flow", "typescript"]

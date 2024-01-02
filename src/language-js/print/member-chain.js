@@ -6,6 +6,7 @@ import {
   indent,
   join,
   label,
+  softline,
 } from "../../document/builders.js";
 import { willBreak } from "../../document/utils.js";
 import { printComments } from "../../main/comments/print.js";
@@ -26,7 +27,7 @@ import {
   isSimpleCallArgument,
 } from "../utils/index.js";
 import printCallArguments from "./call-arguments.js";
-import { printMemberLookup } from "./member.js";
+import { printMemberLookup, shouldInlineMember } from "./member.js";
 import {
   printBindExpressionCallee,
   printFunctionTypeParameters,
@@ -114,6 +115,7 @@ function printMemberChain(path, options, print) {
       printedNodes.unshift({
         node,
         needsParens: pathNeedsParens(path, options),
+        shouldInline: isMemberExpression(node) && shouldInlineMember(path),
         printed: printComments(
           path,
           isMemberExpression(node)
@@ -303,8 +305,29 @@ function printMemberChain(path, options, print) {
     !hasComment(groups[1][0].node) &&
     shouldNotWrap(groups);
 
-  function printGroup(printedGroup) {
-    const printed = printedGroup.map((tuple) => tuple.printed);
+  function printGroup(
+    printedGroup,
+    /** @type {{isFirstGroup?: boolean, isOneLine?: boolean}} */
+    opts = {},
+  ) {
+    const { isFirstGroup = false, isOneLine = false } = opts;
+    const printed = printedGroup.map((printedNode, i) => {
+      if (
+        !isMemberish(printedNode.node) ||
+        (!isOneLine && i === 0) ||
+        printedNode.shouldInline
+      ) {
+        return printedNode.printed;
+      }
+      const shouldBreak =
+        i !== 0 &&
+        hasComment(printedGroup[i - 1].node, CommentCheckFlags.Trailing);
+      const maybeBreakParent = shouldBreak ? breakParent : "";
+      if (isFirstGroup === true || isOneLine) {
+        return group(indent([maybeBreakParent, softline, printedNode.printed]));
+      }
+      return group([maybeBreakParent, softline, printedNode.printed]);
+    });
     // Checks if the last node (i.e. the parent node) needs parens and print
     // accordingly
     if (printedGroup.length > 0 && printedGroup.at(-1).needsParens) {
@@ -321,8 +344,12 @@ function printMemberChain(path, options, print) {
     return indent([hardline, join(hardline, groups.map(printGroup))]);
   }
 
-  const printedGroups = groups.map(printGroup);
-  const oneLine = printedGroups;
+  const printedGroups = groups.map((doc, i) =>
+    printGroup(doc, { isFirstGroup: i === 0 }),
+  );
+  const oneLine = groups.map((doc, i) =>
+    printGroup(doc, { isFirstGroup: i === 0, isOneLine: true }),
+  );
 
   const cutoff = shouldMerge ? 3 : 2;
   const flatGroups = groups.flat();
@@ -358,8 +385,8 @@ function printMemberChain(path, options, print) {
     shouldInsertEmptyLineAfter(lastNodeBeforeIndent);
 
   const expanded = [
-    printGroup(groups[0]),
-    shouldMerge ? groups.slice(1, 2).map(printGroup) : "",
+    printGroup(groups[0], { isFirstGroup: true }),
+    shouldMerge ? groups.slice(1, 2).map((doc) => printGroup(doc)) : "",
     shouldHaveEmptyLineBeforeIndent ? hardline : "",
     printIndentedGroup(groups.slice(shouldMerge ? 2 : 1)),
   ];
