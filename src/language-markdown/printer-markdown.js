@@ -364,7 +364,7 @@ function genericPrint(path, options, print) {
           ];
       }
     case "definition": {
-      const lineOrSpace = options.proseWrap === "always" ? line : " ";
+      const lineOrSpace = options.proseWrap === "always" || options.proseWrap === "sembr" ? line : " ";
       return group([
         printLinkReference(node),
         ":",

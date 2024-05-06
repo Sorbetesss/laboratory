@@ -11,7 +11,7 @@ import {
  * @typedef {import("./utils.js").WhitespaceValue} WhitespaceValue
  * @typedef {import("./utils.js").WordKind} WordKind
  * @typedef {import("../common/ast-path.js").default} AstPath
- * @typedef {"always" | "never" | "preserve"} ProseWrap
+ * @typedef {"always" | "never" | "preserve" | "sembr"} ProseWrap
  * @typedef {{ next?: WordNode | null, previous?: WordNode | null }}
  * AdjacentNodes Nodes adjacent to a `whitespace` node. Are always of type
  * `word`.
@@ -57,6 +57,17 @@ const noBreakBefore = new Set(
 const lineBreakBetweenTheseAndCJConvertsToSpace = new Set(
   "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
 );
+
+/**
+ * For semantic line breaks (see: https://sembr.org/), a line break MUST occur
+ * after period (.), exclamation mark (!), or question mark (?), and SHOULD
+ * occur after a comma (,), semicolon (;), colon (:), or em dash (—).
+ *
+ * Note that the spec itself distinguishes between independent and dependent
+ * clauses, however we cannot do that so we rely on punctuation and `MAY` in the
+ * spec.
+ */
+const sembrBreakAfter = new Set(".!?,;:—");
 
 /**
  * Determine the preferred style of spacing between Chinese or Japanese and non-CJK
@@ -223,7 +234,7 @@ function isNonCJKOrKoreanLetter(kind) {
  */
 function isBreakable(path, value, proseWrap, isLink, canBeSpace) {
   if (
-    proseWrap !== "always" ||
+    (proseWrap !== "always" && proseWrap !== "sembr") ||
     path.hasAncestor((node) => SINGLE_LINE_NODE_TYPES.has(node.type))
   ) {
     return false;
@@ -233,8 +244,8 @@ function isBreakable(path, value, proseWrap, isLink, canBeSpace) {
     return value !== "";
   }
 
-  // Spaces are always breakable
-  if (value === " ") {
+  // Spaces are always breakable in 'always' mode
+  if (proseWrap === "always" && value === " ") {
     return true;
   }
 
@@ -266,6 +277,40 @@ function isBreakable(path, value, proseWrap, isLink, canBeSpace) {
 }
 
 /**
+ * Check whether whitespace must be printed as a linebreak. Only call this if
+ * `isBreakable(...)` returns `true`.
+ *
+ * @param {AstPath} path
+ * @param {WhitespaceValue} value
+ * @param {ProseWrap} proseWrap
+ * @param {boolean} isLink
+ * @param {boolean} canBeSpace
+ * @returns {boolean}
+ */
+function isForcedBreak(path, value, proseWrap, isLink, canBeSpace) {
+  if (proseWrap !== "sembr") {
+    return false;
+  }
+  /* // This check has already been made for us, no need to repeat it.
+  if (isBreakable(path, value, proseWrap, isLink, canBeSpace)) {
+    return false;
+  }
+  */
+
+  /** @type {AdjacentNodes} */
+  const { previous } = path;
+
+  if (
+    previous?.kind === KIND_NON_CJK &&
+    sembrBreakAfter.has(previous.value.at(-1))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * @param {AstPath} path
  * @param {WhitespaceValue} value
  * @param {ProseWrap} proseWrap
@@ -282,7 +327,14 @@ function printWhitespace(path, value, proseWrap, isLink) {
     (value === "\n" && lineBreakCanBeConvertedToSpace(path, isLink));
 
   if (isBreakable(path, value, proseWrap, isLink, canBeSpace)) {
-    return canBeSpace ? line : softline;
+    const forcedBreak = isForcedBreak(
+      path,
+      value,
+      proseWrap,
+      isLink,
+      canBeSpace,
+    );
+    return forcedBreak ? hardline : canBeSpace ? line : softline;
   }
 
   return canBeSpace ? " " : "";
