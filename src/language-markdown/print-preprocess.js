@@ -4,11 +4,19 @@ import { getOrderedListItemInfo, mapAst, splitText } from "./utils.js";
 const isSingleCharRegex = /^.$/su;
 
 function preprocess(ast, options) {
-  ast = restoreUnescapedCharacter(ast, options);
+  if (options.parser === "mdx") {
+    ast = restoreUnescapedCharacter(ast, options);
+  } else {
+    ast = addRawToText(ast, options);
+  }
   ast = mergeContinuousTexts(ast);
   ast = transformIndentedCodeblockAndMarkItsParentList(ast, options);
   ast = markAlignedList(ast, options);
-  ast = splitTextIntoSentences(ast);
+  if (options.parser === "mdx") {
+    ast = splitTextIntoSentencesLegacy(ast);
+  } else {
+    ast = splitTextIntoSentences(ast);
+  }
   return ast;
 }
 
@@ -28,6 +36,21 @@ function restoreUnescapedCharacter(ast, options) {
           ),
         },
   );
+}
+
+function addRawToText(ast, options) {
+  return mapAst(ast, (node) => {
+    if (node.type === "text") {
+      // https://github.com/remarkjs/remark-gfm/issues/16
+      node.raw = node.position
+        ? options.originalText.slice(
+            node.position.start.offset,
+            node.position.end.offset,
+          )
+        : node.value;
+    }
+    return node;
+  });
 }
 
 function mergeChildren(ast, shouldMerge, mergeNode) {
@@ -63,7 +86,7 @@ function mergeContinuousTexts(ast) {
   );
 }
 
-function splitTextIntoSentences(ast) {
+function splitTextIntoSentencesLegacy(ast) {
   return mapAst(ast, (node, index, [parentNode]) => {
     if (node.type !== "text") {
       return node;
@@ -84,6 +107,36 @@ function splitTextIntoSentences(ast) {
       type: "sentence",
       position: node.position,
       children: splitText(value),
+    };
+  });
+}
+
+function splitTextIntoSentences(ast) {
+  return mapAst(ast, (node, index, [parentNode, grandparentNode]) => {
+    if (node.type !== "text") {
+      return node;
+    }
+
+    let text = node.raw;
+
+    if (parentNode.type === "paragraph") {
+      if (grandparentNode.type === "blockquote") {
+        text = text.replaceAll("\n> ", "\n");
+      }
+
+      if (index === 0) {
+        text = text.trimStart();
+      }
+
+      if (index === parentNode.children.length - 1) {
+        text = text.trimEnd();
+      }
+    }
+
+    return {
+      type: "sentence",
+      position: node.position,
+      children: splitText(text),
     };
   });
 }

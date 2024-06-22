@@ -1587,6 +1587,7 @@ exports[`visitor keys remark 1`] = `
   "linkReference": [
     "children",
   ],
+  "liquidBlock": [],
   "liquidNode": [],
   "list": [
     "children",

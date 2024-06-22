@@ -73,10 +73,12 @@ function genericPrint(path, options, print) {
 
   switch (node.type) {
     case "front-matter":
-      return options.originalText.slice(
-        node.position.start.offset,
-        node.position.end.offset,
-      );
+      return options.parser === "mdx"
+        ? options.originalText.slice(
+            node.position.start.offset,
+            node.position.end.offset,
+          )
+        : node.raw;
     case "root":
       /* c8 ignore next 3 */
       if (node.children.length === 0) {
@@ -88,6 +90,10 @@ function genericPrint(path, options, print) {
     case "sentence":
       return printSentence(path, print);
     case "word": {
+      if (options.parser !== "mdx") {
+        return node.value;
+      }
+
       let escapedValue = node.value
         .replaceAll("*", String.raw`\*`) // escape all `*`
         .replaceAll(
@@ -187,9 +193,16 @@ function genericPrint(path, options, print) {
         contents = node.value.replaceAll(/[\t\n]+/gu, " ");
       }
 
-      return ["[[", contents, "]]"];
+      return [
+        "[[",
+        options.parser === "mdx" ? contents : contents.trim(),
+        "]]",
+      ];
     }
     case "link":
+      if (!node.position) {
+        return path.map(print, "children");
+      }
       switch (options.originalText[node.position.start.offset]) {
         case "<": {
           const mailto = "mailto:";
@@ -256,7 +269,9 @@ function genericPrint(path, options, print) {
         node.meta ? " " + node.meta : "",
         hardline,
         replaceEndOfLine(
-          getFencedCodeBlockValue(node, options.originalText),
+          options.parser === "mdx"
+            ? getFencedCodeBlockValue(node, options.originalText)
+            : node.value,
           hardline,
         ),
         hardline,
@@ -354,9 +369,9 @@ function genericPrint(path, options, print) {
           return ["![", node.alt || "", "]", printLinkReference(node)];
         default:
           return [
-            "![",
-            node.alt,
-            "]",
+            ...(options.parser === "mdx"
+              ? ["![", node.alt, "]"]
+              : ["!", printLinkReference(node)]),
             node.referenceType === "collapsed" ? "[]" : "",
           ];
       }
@@ -414,6 +429,7 @@ function genericPrint(path, options, print) {
         ? ["  ", markAsRoot(literalline)]
         : ["\\", hardline];
     case "liquidNode":
+    case "liquidBlock":
       return replaceEndOfLine(node.value, hardline);
     // MDX
     // fallback to the original text if multiparser failed
@@ -427,6 +443,7 @@ function genericPrint(path, options, print) {
     case "math":
       return [
         "$$",
+        node.meta ? " " + node.meta : "",
         hardline,
         node.value ? [replaceEndOfLine(node.value, hardline), hardline] : "",
         "$$",
@@ -742,8 +759,10 @@ function printTitle(title, options, printSpace = true) {
     return " " + printTitle(title, options, false);
   }
 
-  // title is escaped after `remark-parse` v7
-  title = title.replaceAll(/\\(?=["')])/gu, "");
+  // title is escaped before `remark-parse` v10
+  if (options.parser === "mdx") {
+    title = title.replaceAll(/\\(?=["')])/gu, "");
+  }
 
   if (title.includes('"') && title.includes("'") && !title.includes(")")) {
     return `(${title})`; // avoid escaped quotes
